@@ -1,7 +1,6 @@
 ---
 title: "Dementia Prediction with Tree-based Models"
 author: "Nsubuga Emmanuel Reagan"
-date: "created: 2018-04-08 | updated: `r Sys.Date()`" 
 output:
   html_document:
     theme: cerulean
