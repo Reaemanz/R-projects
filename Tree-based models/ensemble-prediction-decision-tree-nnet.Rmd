@@ -1,0 +1,204 @@
+---
+title: "Ensemble Prediction - Decision Tree & Neural Network"
+author: "Sheik Mohamed Imran"
+date: "December 4, 2017"
+output: html_document
+---
+
+
+###Load the required Libraries
+```{r, message=F, warning=F}
+library(funModeling)
+library(caret)
+library(nnet)
+library(gmodels)
+library(C50)
+library(NeuralNetTools)
+library(partykit)
+library(knitr)
+knitr::opts_chunk$set(fig.width=12, fig.height=12) 
+library(e1071)   
+```
+
+###Read the data into the variable
+```{r}
+cancerdata<-read.csv("../input/data.csv")
+```
+
+###Check dataset for NA Data
+
+```{r}
+sum(complete.cases(cancerdata)) == nrow(cancerdata)
+```
+
+Here, 'FALSE' indicates 'NA' are available, now lets identify the corresponding column(s).
+
+###Identify columns with NA
+```{r}
+colnames(cancerdata)[colSums(is.na(cancerdata)) > 0]
+```
+
+Column 'X' is identified as the column containing only 'NA'
+
+###Remove unwanted columns from the original data
+'X' has all the values as 'NA' and from the description of the dataset, 'id' corresponds to the patient identifier. These columns can be removed to have a sane dataset.
+```{r}
+cancerdata <- subset(cancerdata, select = -c(X))
+cancerdata <- subset(cancerdata, select = -c(id))
+cancerdata$diagnosis<-as.factor(cancerdata$diagnosis) 
+```
+
+###Basic Analysis
+
+```{r, results=F}
+cancerdata_status=df_status(cancerdata)
+```
+
+```{r}
+kable(cancerdata_status, caption = "Breast Cancer Data Analysis")
+```
+
+As one can notice, there are some column containing values as '0', but not any 'NA' or 'INF' values, this data is clean enough to proceed with further processing
+
+###Plot the data
+```{r}
+plot_num(cancerdata)
+```
+
+In most of the columns, data frequency is normally distributed
+
+###Normailize dataset using PCA
+Column 1 is the diagonised value (M=malignant and B=benign), we will ignore this to conduct PCA and prediction
+```{r}
+pca <- prcomp(cancerdata[,-1], retx=TRUE, center=TRUE, scale=TRUE)
+pred <- predict(pca, newdata=cancerdata[,-1])
+```
+
+
+###Include the removed column back to the standardised data
+```{r}
+cancerdata <- data.frame(cbind(pred,diagnosis=cancerdata[,1]))
+cancerdata$diagnosis=as.factor(cancerdata$diagnosis)
+```
+
+
+###Create sample and train data
+Here we create the sample and train data using seed function. This value is set to a predefined value such that the same set of rows are returned throught the code.
+```{r}
+set.seed(1023)
+samp <- sample(nrow(cancerdata), nrow(cancerdata)*0.8)
+cancerdata.train <- data.frame(cancerdata[samp,])
+cancerdata.valid <- data.frame(cancerdata[-samp,])
+```
+
+##Create C5.0 Model 
+We now create a basic C5.0 model
+```{r}
+model_c5<-C5.0(diagnosis ~ ., data=cancerdata.train,
+           trials=50,
+           control = C5.0Control
+           (                        
+             noGlobalPruning = T,
+             CF=0.8,
+             minCases=10,
+             sample = 0.80,
+             winnow=F,
+             earlyStopping=T
+           ))
+```
+
+###List important variables in the model
+```{r}
+C5imp(model_c5)
+```
+
+Based on the output, we can see that the most important node variable is PC1, followed by PC2 and PC5
+
+###Plot the created model
+The default plot function for the C5.0, gives a greyscale image with features. We have extended the partykit function to plot a colourful descion tree of our C5.0 model.
+```{r}
+columncol<-hcl(c(270, 260, 250), 200, 30, 0.6)
+labelcol<-hcl(200, 200, 50, 0.2)
+indexcol<-hcl(150, 200, 50, 0.4)
+
+model_c5a=C50:::as.party.C5.0(model_c5)
+plot(model_c5a,type="simple",gp = gpar(fontsize = 8), drop_terminal = TRUE, tnex=1,
+     inner_panel = node_inner(model_c5a, abbreviate = FALSE,
+                              fill = c(labelcol, indexcol), pval = TRUE, id = TRUE),
+     terminal_panel=node_barplot(model_c5a, col = "black", fill = columncol[c(1,2,4)], 
+                                 beside = TRUE, ymax = 1, ylines = TRUE, widths = 1, gap = 0.1,
+                                 reverse = FALSE, id = TRUE))
+
+```
+
+
+
+
+###Make predictions and print the crosstable
+Create prediction of validation data based on the C5.0 model created and print the results in a CrossTable.
+```{r}
+predictions_c5 <- predict(model_c5, cancerdata.valid[-31], type="class")
+CrossTable(cancerdata.valid$diagnosis, predictions_c5, prop.chisq = FALSE,
+           prop.c = FALSE, prop.r = FALSE, dnn = c("Actual diagnosis",
+                                                   "Predicted diagnosis"))
+
+```
+
+###Check the accuracy of the model
+```{r}
+paste0(round(sum(predictions_c5 == cancerdata.valid$diagnosis)/nrow(cancerdata.valid)*100,digit=4),"%")
+```
+
+###Add predictions from C5.0 to train data, for better accuracy in subsequent model
+```{r}
+cancerdata.train$predictions_c5 <- predict(model_c5, cancerdata.train[-31], type="class")
+cancerdata.train$predictions_c5=as.factor(cancerdata.train$predictions_c5)
+```
+
+##Create Neural network model
+```{r,results=F}
+myform <- as.formula(paste0('diagnosis ~ ', 
+                            paste(names(cancerdata.train[!names(cancerdata.train) %in% 'diagnosis']),
+                                  collapse = ' + ')))
+model_nnet<-nnet(diagnosis ~. , data=cancerdata.train,size=3,rang = 1,decay = 8e-4, maxit = 200)
+```
+
+###Make predictions and print the crosstable
+Create prediction of validation data based on the Neural Net model created and print the results in a CrossTable.
+```{r}
+predictions_nnet<-predict(model_nnet, cancerdata.valid[,-31], type = c("class") )
+CrossTable(cancerdata.valid$diagnosis, predictions_nnet, prop.chisq = FALSE,
+           prop.c = FALSE, prop.r = FALSE, dnn = c("Actual diagnosis",
+                                                   "Predicted diagnosis"))
+
+```
+
+##Print the accuracy of the model
+```{r}
+paste0(round(sum(predictions_nnet == cancerdata.valid$diagnosis)/nrow(cancerdata.valid)*100,digit=4),"%")
+```
+
+
+###Evaluate variable importance
+Relative importance of input variables in neural networks as the sum of the product of raw inputhidden, hidden-output connection weights, proposed by Olden et al. 2004.
+
+```{r}
+olden(model_nnet)
+```
+
+In the plot, here are both positive and negative values.The values reflect negative and positive relationships between the variable and the response variable.
+
+
+###Plot the neuralnetwork
+Here we specifiy the relative importance of input variables in neural networks using Garson’s algorithm. The variables of importance are highlighted in green, darker being higher importance.
+
+```{r}
+rel_imp <- garson(model_nnet, bar_plot = FALSE)$rel_imp
+cols <- colorRampPalette(c('lightgreen', 'darkgreen'))(3)[rank(rel_imp)]
+plotnet(model_nnet, cex_val = .8,max_sp=TRUE,circle_cex=3,circle_col = list(cols, 'lightblue'))
+```
+
+####References:
+- https://amunategui.github.io/blending-models/
+- https://rmanic.wordpress.com/2016/05/19/creating-a-well-formatted-decision-tree-with-partykit-and-listing-the-rules-of-the-nodes/
+- https://beckmw.wordpress.com/2013/11/14/visualizing-neural-networks-in-r-update/

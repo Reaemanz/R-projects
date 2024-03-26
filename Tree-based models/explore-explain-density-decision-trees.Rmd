@@ -1,0 +1,460 @@
+---
+title: "EDA"
+author: "Michael Griffiths"
+date: "December 29, 2016"
+output: html_document
+---
+
+```{r}
+library(needs)
+needs(tidyverse,
+      plotly,
+      rpart, 
+      rpart.plot,
+      viridis,
+      Metrics,
+      glmnet,
+      formattable)
+```
+
+We have some data out of a HR system, related to employees leaving the company. Let's take a look!
+
+# Data
+
+```{r}
+data <- read_csv("../input/HR_comma_sep.csv")
+
+data %>% 
+  head(5e2) %>% 
+  formattable() %>% 
+  as.datatable
+```
+
+We can make a few observations about the columns --
+
+  * `satisfaction_level`: A numeric indictor, presumably (?) filled out by the employee.
+  * `last_evaluation`: A numeric indicator, presumably filled in by the employee's manager.
+  * `number_project`: A integer - perhaps the number of projects the employee has worked on. Is this something like construction?
+  * `average_monthly_hours`: The number of hours they work (billed?) in the month. On average?
+  * `time_spend_company`: An integer value, perhaps years of service.
+  * `Work_accident`: Looks like a boolean value, probably whether or not they had an accident.
+  * `left`: Looks like a boolean value, leave or not.
+  * `promoted_last_5years`: Looks like a boolean value.
+  * `sales`: Not sure what this means. Part of the sales force? 
+  * `salary`: Looks like a 3-level salary score (`low`, `medium`, `high`)
+  
+Some missing things - 
+
+  * `user_id`: What if an employee leaves and comes back? Are they in there twice?
+  
+  
+Well, let's investigate some of the columns.
+
+## Salary
+
+What's the distribution of salary?
+
+```{r}
+data %>% 
+  count(salary) %>% 
+  formattable(align = 'l')
+```
+
+Unsurprisingly, only a small number of people have a `high` salary level. It's interesting that `medium` and `low` are around the same size.
+
+## sales
+
+```{r}
+data %>% 
+  count(sales) %>% 
+  formattable(align = 'l')
+```
+
+It looks like we have people from all departments! That's interesting -- I wouldn't think `number_projects` would really apply to, say, **IT** or **accounting**.
+
+It also looks like **sales** is the largest category, which makes sense. 
+
+How does `sales` and `salary` interact?
+
+```{r}
+data %>% 
+  count(sales, salary) %>% 
+  mutate(
+    salary = ordered(salary, c("low", "medium", "high")),
+    n = comma(n, 0)
+  ) %>% 
+  spread(salary, n) %>% 
+  formattable(list(area(T, 2:4) ~ color_tile("white", "orange")), align = 'l')
+```
+
+Some pretty obvious stuff here.
+
+  * **management** tends to have higher salaries.
+  * Very few people in **sales** have high salaries.
+  * There are _a lot_ of people with lower salaries in **support**, **sales**, and **technical**.
+  
+Let's look at the same chart by percentage instead of actual numbers.
+
+```{r}
+data %>% 
+  count(sales, salary) %>% 
+  group_by(sales) %>% 
+  mutate(
+    salary = ordered(salary, c("low", "medium", "high")),
+    n = percent(n, 0),
+    n = n / sum(n)
+  ) %>% 
+  spread(salary, n) %>% 
+  formattable(list(area(T, 2:4) ~ color_tile("white", "orange")), align = 'l')
+```
+
+That makes the distribution of **management** really obviousl, and also points out that the second highest is **accounting** (which was not obvious to me in the precious chart). 
+
+It also seems that while there are _a lot_ of people in some of the other departments with low/medium salaries; as a percentage of each they're all roughly the same. If we wanted to make it really obvious, we could index. But given how small the variation, there's no real need.
+
+## Promoted
+
+Now let's look at `promotion_last_5years`.
+
+```{r}
+data %>% 
+  count(promotion_last_5years) %>% 
+  formattable(align = 'l')
+```
+
+The short answer is "not many" people were promoted. 
+
+```{r}
+data %>% 
+  count(promotion_last_5years, salary) %>% 
+  group_by(salary) %>% 
+  mutate(n = n / sum(n), n = percent(n)) %>% 
+  spread(promotion_last_5years, n) %>% 
+  formattable(align = 'l')
+```
+
+It's unsurprising to note that, of the people making a high salary, nearly 6% of them were promoted in the last 5 years.
+
+## Time Spent
+
+```{r}
+data %>% 
+  count(time_spend_company) %>% 
+  ggplot(aes(time_spend_company, n)) +
+  geom_line() ->
+  g
+
+ggplotly(g, width = 900)
+```
+
+I always find the spikes interesting - a large one at three years, and then a serious dropoff for year four onward.
+
+It's interesting that they're not counting people who have been there for less than two years. What's that about? Is there too much churn?
+
+How does that relate to salary?
+
+```{r}
+data %>% 
+  mutate(salary = ordered(salary, c("low", "medium", "high"))) %>% 
+  count(time_spend_company, salary) %>% 
+  group_by(time_spend_company) %>% 
+  mutate(n = percent(n / sum(n))) %>% 
+  ggplot(aes(time_spend_company, n)) +
+  geom_area(aes(fill = salary)) ->
+  g
+
+ggplotly(g, width = 900)
+```
+
+Ideally, I'd like to make a story like "salary is pretty flat until around 5 or 6 years, and then the people who've been here longer tend to make more money." But it doesn't look like that -- note the spike in **low** salary levels at ~8 years. 
+
+Still, the _ratio_ of people with different salary levels follows roughly that disribution.
+
+Note that there are a decent number of **high** salary people with < 3 years of service. I'd wager there's a group of managers/specialists who are highered at the senior level, then only stick around for a few years. The people who remain might have fewer options, which would explain why there are fewer **high** salary people at year 5 or so.
+
+## Monthly Hours
+
+Let's take a look at monthly hours.
+
+```{r}
+data %>% 
+  ggplot(aes(average_montly_hours)) +
+  geom_density(fill = "orange") ->
+  g
+
+ggplotly(g, width = 900)
+```
+
+Interesting that we have what appears to be a bimodal distribution - one peak at ~150 hours (roughly a 40 hour work week), and one at 260 (a crazy-insane 65 hour work-week).
+
+How does that break down by department and by salary level?
+
+```{r}
+data %>% 
+  mutate(salary = ordered(salary, c("low", "medium", "high"))) %>% 
+  ggplot(aes(average_montly_hours)) +
+  geom_density(fill = "orange") +
+  facet_grid(sales ~ salary) -> 
+  g
+
+ggplotly(g, height = 1e3, width = 900)
+```
+
+I'm honestly surprised to not see more variation. However, there are a few interesting things we can point out.
+
+  * Nearly all the distributions remain bimodal. Is there some other factor going on?
+  * In **marketing** it seems like high-salary people take a break. It's more common to be working fewer hours.
+  * In **support**, working longer is apparently required.
+  * It seems like **hr** people at a medium salary don't work as much as high or low salary people.
+  
+## Project Counts
+
+Let's see how many projects people work on.
+
+```{r}
+data %>% 
+  count(number_project, sales) %>% 
+  spread(number_project, n) %>% 
+  formattable(align = 'l')
+```
+
+I'm honestly not sure what this variable - number of projects - even means. Does it mean e.g. clients they touch? Or is it "project ID" -- there are six projects? That's feasible, I suppose. 
+
+Let's look at the percentage breakdown.
+
+```{r}
+data %>% 
+  count(number_project, sales) %>% 
+  group_by(number_project) %>% 
+  mutate(n = percent(n / sum(n), 0)) %>% 
+  spread(number_project, n) %>% 
+  formattable(align = 'l')
+```
+
+Hmm -- it's reletively similar across projects. Does that suggest it's not "number of projects" but rather "ID of project they're assigned to?" Not necessarily. But why is there no `number_project` == 1?
+
+The documentation says it's _Number of projects_, so we'll leave it there for now.
+
+```{r}
+data %>% 
+  count(number_project, left) %>% 
+  spread(left, n) %>% 
+  formattable(align = 'l')
+```
+
+It's kind of suspicious that people with `number_project == 7` have all left the company...
+
+Oh well.
+
+## Satisfaction & Rating
+
+```{r}
+data %>% 
+  mutate(left = factor(left, labels = c("Remain", "Left"))) %>% 
+  ggplot(aes(satisfaction_level)) +
+  geom_density(fill = "orange") +
+  facet_wrap( ~ left, ncol = 2) -> 
+  g
+
+ggplotly(g, width = 900)
+```
+
+Well, that's pretty clear. People with low satisfaction rarely stay at the company - and I'd eye the people with satisfaction < 0.5 as ripe to leave - and those who leave fall into three categories:
+
+  1. The "haters" with satisfaction < 0.2
+  2. The "unsatisfied" with satisfaction < 0.5
+  3. The "pretty good", with satisfaction > 0.6
+  
+How about rating?
+
+```{r}
+data %>% 
+  mutate(left = factor(left, labels = c("Remain", "Left"))) %>% 
+  ggplot(aes(last_evaluation)) +
+  geom_density(fill = "orange") +
+  facet_wrap( ~ left, ncol = 2) -> 
+  g
+
+ggplotly(g, width = 900)
+```
+
+I mean, that's pretty amazing. It suggests that the people who leave are either:
+
+  1. Pretty bad at their job. Note that the low end of the scale is 0.4.
+  2. Excellent at their job, probably leaving for a promotion.
+  
+Can we look at both satisfaction and last evaluation?
+
+```{r, fig.width = 10, fig.height = 6}
+data %>% 
+  mutate(left = factor(left, labels = c("Remain", "Left"))) %>% 
+  ggplot(aes(last_evaluation, satisfaction_level)) +
+  geom_point(alpha = 0.05, color = "orange") +
+  facet_wrap( ~ left, ncol = 2) -> 
+  g
+
+# Use WebGL for speed
+ggplotly(g) %>% 
+  toWebGL()
+```
+
+Well, hot damn: that's a pretty tight distribution for **Left**. Crazy tight.
+
+# Leaving
+
+Now let's look at why people left. Since we're interested in _understanding_, we can accomplish this a couple of ways - linear models or decision trees. Based on some of the other analyses performed it looks like random forests wins.
+
+So let's try a single decision tree!
+
+First we'll separate into test and train.
+
+```{r}
+n <- nrow(data)
+idx <- sample(n, n * .66)
+
+# Make a few modications
+data %>% 
+  mutate(
+    left = factor(left, labels = c("Remain", "Left")),
+    salary = ordered(salary, c("low", "medium", "high"))
+  ) -> 
+  d
+
+train <- d[idx, ]
+test <- d[-idx, ]
+```
+
+Then we'll train a single decision tree using `rpart` to and evaluate to see how good our fit is.
+
+```{r}
+tree <- rpart(left ~ ., data = train)
+
+res <- predict(tree, test)
+
+auc(as.numeric(test$left) - 1, res[, 2])
+```
+
+I mean, that's a pretty unbeliebable AUC score for a single tree. Let's take a look at it.
+
+```{r, fig.width = 10, fig.height = 8}
+rpart.plot(tree, type = 2, fallen.leaves = F, cex = 1, extra = 2)
+```
+
+So, what can we observe?
+
+  1. Satisfaction level appears to be the most import piece. If you're above 0.46 you're much more likely to stay (which is what we observed above).
+  2. If you have low satisfaction, the number of projects becomes import. If you're on more projects you're more likely to remain. If you're on fewer projects -- perhaps you see the writing on the wall?
+  3. If you're happy, have been at the company for less than 4.5 years, and score over 81% on your last evaluation, you're very likely to leave. And, it appears as if the "decider" is monthly hours over 216. 
+  
+In brief:
+
+  1. If you're successful and overworked, you leave.
+  2. If you're unhappy and overworked, you leave.
+  3. If you're unhappy and underworked, you leave. 
+  4. If you've been at the company for more than 6.5 years, you're more likely to be happy working longer hours.
+  
+Let's limit the variables that go into the model to `satisfaction_level`, `last_evaluatoin`, and `average_monthly_hours`.
+
+```{r}
+tree <- rpart(left ~ satisfaction_level + last_evaluation + average_montly_hours, data = train)
+
+res <- predict(tree, test)
+
+auc(as.numeric(test$left) - 1, res[, 2])
+```
+
+Still an excellent AUC score.
+
+```{r, fig.width = 10, fig.height = 8}
+rpart.plot(tree, type = 2, fallen.leaves = F, cex = 1, extra = 2)
+```
+
+We see much the same story -- if you're good and overworked you leave; if you're unhappy you tend to leave, especially if you're not getting enough work. 
+
+# Promotion
+
+How about people getting a promotion?
+
+Let's reprise our data splitting.
+
+```{r}
+n <- nrow(data)
+idx <- sample(n, n * .66)
+
+# Make a few modications
+data %>% 
+  mutate(
+    left = factor(left, labels = c("Remain", "Left")),
+    salary = ordered(salary, c("low", "medium", "high")),
+    promotion_last_5years = factor(promotion_last_5years, labels = c("Not Promoted", "Promoted"))
+  ) -> 
+  d
+
+train <- d[idx, ]
+test <- d[-idx, ]
+```
+
+Now we can train and examine.
+
+```{r}
+tree <- rpart(promotion_last_5years ~ ., data = train)
+
+res <- predict(tree, test)
+
+auc(as.numeric(test$promotion_last_5years) - 1, res[, 2])
+```
+
+Huh: that's awful. Do we really have such limited ability to predict a promotion?
+
+```{r, fig.width = 10, fig.height = 6}
+rpart.plot(tree, type = 2, fallen.leaves = F, cex = 1, extra = 2)
+```
+
+So... this suggests that the best measure of "having been promoted" is "been at the company for a while". Interesting. 
+
+However, with such a low AUC score it's obviously untrustworthy. 
+
+We can try to see what features matter with a lasso-penalized logistic regression. Let's take a quick look.
+
+```{r}
+X = model.matrix(promotion_last_5years ~ 0 + ., data) 
+y = data$promotion_last_5years
+
+lasso <- glmnet(X, y)
+```
+
+All we're really interested in is the coefficient chart (from e.g. `plot(lasso)`). But I want the coefficient label and value to be available on hover, so alas we must deign to manipulate the `glmnet` object directly.
+
+```{r}
+c = as.data.frame(as.matrix(coef(lasso)))
+c %>% 
+  mutate(var = rownames(c)) %>% 
+  gather(lambda, estimate, -var) %>% 
+  filter(var != "(Intercept)") %>% 
+  group_by(lambda) %>% 
+  mutate(l1_norm = sum(abs(estimate))) %>% 
+  ggplot(aes(l1_norm, estimate)) +
+  geom_line(aes(color = var)) +
+  geom_hline(yintercept = 0) +
+  theme(legend.position = "null") ->
+  g
+
+ggplotly(g, width = 900) %>%
+  layout(showlegend = FALSE)
+```
+
+So, in the case of the linear model, we get a slightly different conclusion. 
+
+  1. The best indicator of "having been promoted" is "being in management". Shocking - I know - though it makes sense if people are promoted _from_ an IC role _into_ management. Therefore, promotions could primarily indicate management responsibility.
+  2. The next best indicator is "salary low". It makes sense that if you're underpaid you might get a promotion.
+  3. Then it's a whole lot of things that matter. Unsurprisingly, if you leave the company you can't get promoted.
+  
+# Conclusion
+
+Overall, I'd say that:
+
+  * Figuring out why people are leaving is pretty easy.
+  * Identifying promotions seems very hard.
+  * Having salary cut into "high", "medium", and "low" is not something I really like. 
+  
+Also, I've really enjoyed using `plotly` for charting here. The conversion from `ggplot2` is shockingly good. Plus, the `toWebGL` method (which I only just leared about) makes it feasilble to plot thousands of points without horribad performance.
