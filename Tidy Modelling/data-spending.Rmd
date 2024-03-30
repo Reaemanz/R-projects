@@ -165,9 +165,6 @@ Next, at the beginning of this chapter, we warned about using the same data for 
 Finally, the considerations in this chapter apply to developing and choosing a reliable model, the main topic of this book. When training a final chosen model for production, after ascertaining the expected performance on new data, practitioners often use all available data for better parameter estimation.
 
 
-## Chapter Summary {#splitting-summary}
- 
-Data splitting is the fundamental strategy for empirical validation of models. Even in the era of unrestrained data collection, a typical modeling project has a limited amount of appropriate data, and wise spending of a project's data is necessary. In this chapter, we discussed several strategies for partitioning the data into distinct groups for modeling and evaluation. 
 
 At this checkpoint, the important code snippets for preparing and splitting are:
 
