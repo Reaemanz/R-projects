@@ -1,0 +1,467 @@
+---
+title: "Online Assessment"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DATA ANALYSIS ASSESSMENT
+
+LOAD PACKAGES
+
+```{r}
+library(tidyverse)
+library(scales)
+library(readxl)
+```
+
+LOAD THE  CAMP DATASET
+
+```{r}
+workbook_path <- "R:/R Programming/Raising the village/Camp1.xlsx"
+```
+
+LOAD THE SHEETS
+
+```{r}
+# List all sheet names
+sheet_names <- c('Treatment Baseline', 'Control Baseline', 'Treatment Midline', 'Control Midline', 'Treatment Endline', 'Control Endline')
+
+```
+
+
+
+```{r}
+# Create a list to store data frames
+sheets_list <- list()
+
+# Read each sheet into a separate data frame and store in the list
+for (sheet in sheet_names) {
+  sheets_list[[sheet]] <- read_excel(workbook_path, sheet = sheet)
+}
+
+# Assign each data frame in the list to a variable in the global environment
+list2env(sheets_list, .GlobalEnv)
+```
+PRINTING THE DATA FRAMES
+```{r}
+print(head(`Treatment Baseline`))
+```
+
+CONTROL BASELINE
+
+```{r}
+print(head(`Control Baseline`))
+```
+
+TREATMENT MIDLINE
+
+```{r}
+print(head(`Treatment Midline`))
+```
+
+CONTROL MIDLINE
+
+```{r}
+print(head(`Treatment Midline`))
+```
+
+TREATMENT ENDLINE
+
+```{r}
+print(head(`Treatment Midline`))
+```
+
+CONTROL ENDLINE
+
+```{r}
+print(head(`Control Endline`))
+```
+
+
+ASSIGNMENT 1: CONVERSION TO USD
+
+
+```{r}
+# Define conversion rates
+conversion_rates <- list(
+  Baseline = 3400,
+  Midline = 3600,
+  Endline = 4000
+)
+
+```
+
+DEFINE THE COLUMNS TO CONVERT:
+
+```{r}
+columns_to_convert <- c(
+  "Formal Employment (Ugx)",
+  "Personal Business & Self Employment (Ugx)",
+  "Casual Labour (Ugx)",
+  "Remittances & Gifts (Ugx)",
+  "Rent Income (Property & Land) Ugx",
+  "Seasonal Crops Income (Ugx)",
+  "Perenial Crops Income (Ugx)",
+  "Livestock Income (Ugx)",
+  "HH Income"
+)
+
+```
+
+
+```{r}
+library(stringr)
+
+# Function to convert UGX to USD and rename columns
+convert_to_usd <- function(df, rate) {
+  existing_columns <- columns_to_convert[columns_to_convert %in% colnames(df)]
+  
+  if (length(existing_columns) > 0) {
+    df <- df %>%
+      mutate(across(all_of(existing_columns), ~ . / rate)) %>%
+      rename_with(~ str_replace(., "\\(Ugx\\)", "(USD)"), all_of(existing_columns))
+  }
+  
+  return(df)
+}
+```
+
+
+APPLY CONVERSION RATE
+
+```{r}
+# Apply conversion rates and rename columns for each data frame
+for (sheet in names(sheets_list)) {
+  if (grepl("Baseline", sheet, ignore.case = TRUE)) {
+    sheets_list[[sheet]] <- convert_to_usd(sheets_list[[sheet]], conversion_rates$Baseline)
+  } else if (grepl("Midline", sheet, ignore.case = TRUE)) {
+    sheets_list[[sheet]] <- convert_to_usd(sheets_list[[sheet]], conversion_rates$Midline)
+  } else if (grepl("Endline", sheet, ignore.case = TRUE)) {
+    sheets_list[[sheet]] <- convert_to_usd(sheets_list[[sheet]], conversion_rates$Endline)
+  }
+}
+
+# Assign each data frame in the list to a variable in the global environment
+list2env(sheets_list, .GlobalEnv)
+```
+
+ASSIGNMENT 1 QUESTION 2
+
+DATA PREPARATION
+
+```{r}
+# Combine data for Baseline, Midline, and Endline
+baseline_data <- bind_rows(`Treatment Baseline` %>% mutate(group = "treatment", time = "baseline"),
+                           `Control Baseline` %>% mutate(group = "control", time = "baseline"))
+
+midline_data <- bind_rows(`Treatment Midline` %>% mutate(group = "treatment", time = "midline"),
+                          `Control Midline` %>% mutate(group = "control", time = "midline"))
+
+endline_data <- bind_rows(`Treatment Endline` %>% mutate(group = "treatment", time = "endline"),
+                          `Control Endline` %>% mutate(group = "control", time = "endline"))
+
+# Combine all data into one data frame
+combined_data <- bind_rows(baseline_data, midline_data, endline_data)
+
+```
+
+
+```{r}
+# Ensure correct types for group and time variables
+combined_data <- combined_data %>%
+  mutate(group = factor(group, levels = c("control", "treatment")),
+         time = factor(time, levels = c("baseline", "midline", "endline")))
+```
+
+
+RUNNING THE DiD REGRESSION
+
+```{r}
+# Load necessary packages
+install.packages("lmtest")
+library(lmtest)
+
+
+```
+
+
+DEFINE THE MODEL
+
+```{r}
+# Define the model formula for each variable
+model_formulas <- list(
+  PPI = "`PPI(%)` ~ group * time",
+  Livestock_Asset_Value = "`Livestock Asset Value` ~ group * time",
+  HH_Income = "`HH Income` ~ group * time",
+  HH_Income_Consumption_Residues_Per_Day = "`HH Income + Consumption + Residues` ~ group * time"
+)
+```
+
+RUN THE REGRESSION
+
+```{r}
+# Run the DiD regression for each variable
+results <- lapply(model_formulas, function(formula) {
+  lm(as.formula(formula), data = combined_data)
+})
+```
+
+THE RESULTS
+
+```{r}
+# Display the summary of each model
+lapply(results, summary)
+```
+
+INTREPRETATION OF THE RESULTS
+
+# PPI (%)
+
+Intercept: The average PPI (%) for the control group at the baseline is 32.70.
+
+Group treatment: The difference between the treatment and control groups at baseline is -1.09, 
+which is not statistically significant (p-value = 0.38401).
+
+time midline: The change in PPI for the control group from baseline to midline is -5.84, which is statistically significant (p-value = 6.56e-08).
+
+time endline: The change in PPI for the control group from baseline to endline is -6.81, which is statistically significant (p-value = 2.72e-10).
+
+group treatment: The interaction term is -0.83, indicating the difference-in-differences estimate at midline, which is not statistically significant (p-value = 0.59740).
+
+group treatment: The interaction term is -4.59, indicating the difference-in-differences estimate at endline, which is statistically significant (p-value = 0.00359).
+
+
+# Livestock Asset Value
+
+Intercept: The average Livestock Asset Value for the control group at the baseline is 623634.
+
+group treatment: The difference between the treatment and control groups at baseline is -27333,
+which is not statistically significant (p-value = 0.844).
+
+time midline: The change in Livestock Asset Value for the control group from baseline to midline is -27146, which is not statistically significant (p-value = 0.820).
+
+time endline: The change in Livestock Asset Value for the control group from baseline to endline is -96694, which is not statistically significant (p-value = 0.416).
+
+group treatment: The interaction term is 682186, indicating the difference-in-differences estimate at midline, which is statistically significant (p-value = 8.06e-05).
+
+group treatment: The interaction term is 951909, indicating the difference-in-differences estimate at endline, which is statistically significant (p-value = 4.76e-08).
+
+# HH Income
+
+Intercept: The average HH Income for the control group at the baseline is 318.69.
+
+group treatment: The difference between the treatment and control groups at baseline is 41.98, which is not statistically significant (p-value = 0.9165).
+
+time midline: The change in HH Income for the control group from baseline to midline is 194.65, which is not statistically significant (p-value = 0.5711).
+
+time endline: The change in HH Income for the control group from baseline to endline is 269.43, which is not statistically significant (p-value = 0.4317).
+
+group treatment: The interaction term is 65.02, indicating the difference-in-differences estimate at midline, which is not statistically significant (p-value = 0.8961).
+
+group treatment: The interaction term is 1118.68, indicating the difference-in-differences estimate at endline, which is statistically significant (p-value = 0.0257).
+
+
+# HH Income + Consumption + Residues/Day
+
+Intercept: The average HH Income + Consumption + Residues/Day for the control group at the baseline is 1647069.
+
+group treatment: The difference between the treatment and control groups at baseline is 185502,
+which is not statistically significant (p-value = 0.84958).
+
+time midline: The change in HH Income + Consumption + Residues/Day for the control group from baseline to midline is 1493744, which is marginally significant (p-value = 0.07515).
+
+time endline: The change in HH Income + Consumption + Residues/Day for the control group from baseline to endline is 2051368, which is statistically significant (p-value = 0.01427).
+
+group treatment: The interaction term is 535965, indicating the difference-in-differences estimate at midline, which is not statistically significant (p-value = 0.65947).
+
+grouptreatment: The interaction term is 3257865, indicating the difference-in-differences estimate at endline, which is statistically significant (p-value = 0.00782).
+
+
+## QUESTION 3
+
+To determine if RTV achieved the targets of $1.25/day at Midline and $2/day at Endline for HH Income, I need to calculate the mean HH Income for the treatment group at Midline and Endline,
+Compare these means to the targets and visualize the results.
+
+COMPUTING THE MEAN
+
+```{r}
+# Compute mean HH Income per day for the treatment group at Midline and Endline
+mean_income_per_day <- combined_data %>%
+  filter(group == "treatment") %>%
+  group_by(time) %>%
+  summarize(mean_HH_Income_per_day = mean(`HH Income`, na.rm = TRUE) / 30)  # Assuming monthly data with 30 days
+
+# Display the means
+print(mean_income_per_day)
+
+
+```
+
+COMPARISON TO TARGETS
+
+```{r}
+# Define the targets per day
+targets_per_day <- data.frame(
+  time = c("midline", "endline"),
+  target = c(1.25, 2.00)
+)
+
+# Merge the means with the targets
+comparison_per_day <- merge(mean_income_per_day, targets_per_day, by = "time")
+
+# Check if targets were achieved
+comparison_per_day <- comparison_per_day %>%
+  mutate(achieved = ifelse(mean_HH_Income_per_day >= target, "Yes", "No"))
+
+# Display the comparison
+print(comparison_per_day)
+
+```
+
+VISUALISING THE RESULTS
+
+```{r}
+# Load necessary library for visualization
+
+library(ggplot2)
+
+# Plot the results
+ggplot(comparison_per_day, aes(x = time, y = mean_HH_Income_per_day)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.5) +
+  geom_hline(aes(yintercept = target, color = time), linetype = "dashed") +
+  geom_text(aes(label = paste("Achieved:", achieved), y = mean_HH_Income_per_day + 0.1), vjust = 0) +
+  labs(title = "Mean HH Income per Day at Midline and Endline",
+       x = "Time",
+       y = "Mean HH Income per Day (USD)") +
+  theme_minimal() +
+  scale_color_manual(values = c("midline" = "red", "endline" = "blue")) +
+  theme(legend.position = "none")
+
+```
+
+ASSIGNMENT 1: QUESTION 4
+
+CONVERT RENT INCOME TO USD
+
+```{r}
+# Function to convert and rename "Rent Income (Property & Land) Ugx" to USD
+convert_rent_income_to_usd <- function(df, rate) {
+  if ("Rent Income (Property & Land) Ugx" %in% colnames(df)) {
+    df <- df %>%
+      mutate(`Rent Income (Property & Land) (USD)` = `Rent Income (Property & Land) Ugx` / rate) %>%
+      select(-`Rent Income (Property & Land) Ugx`)
+  }
+  return(df)
+}
+```
+
+
+```{r}
+# Perform multiple linear regression
+model <- lm(`HH Income` ~ `Formal Employment (USD)` + `Personal Business & Self Employment (USD)` + `Casual Labour (USD)` + `Remittances & Gifts (USD)` + `Seasonal Crops Income (USD)` + `Perenial Crops Income (USD)` + `Livestock Income (USD)`, data = combined_data)
+
+# Display the summary of the regression model
+summary(model)
+
+```
+
+All the variables significantly contribute to HH Income, but the income from Perenial Crops is the most significant contributor.
+
+# REASONING
+
+I've used multiple linear regression because it allows us to understand the relationship between a dependent variable (HH Income) and multiple independent variables (different sources of income). The coefficients from the regression model help identify the contribution of each independent variable to the dependent variable.
+
+
+# ASSIGNMENT TWO
+
+LOADING THE WORKBOOK INTO MY ENVIRONMENT
+
+```{r}
+# Define the path to the uploaded workbook
+workbook_path <- "R:/R Programming/Raising the village/Base 1.xlsx"
+
+# List all sheet names
+sheet_names <- excel_sheets(workbook_path)
+
+# Read each sheet into a separate data frame and store them in a list
+sheets_list <- lapply(sheet_names, function(sheet) {
+  read_excel(workbook_path, sheet = sheet)
+})
+
+# Combine the sheets into one data frame
+combined_data <- bind_rows(sheets_list)
+
+# Display the first few rows of the combined data
+print(head(combined_data))
+
+```
+
+SUMMARY STATISTICS
+
+```{r}
+summary(combined_data)
+```
+
+
+The dataset comprises 2513 records, offering a detailed look at both demographic and economic variables. The average age is around 50 years, ranging from 18 to 103, with a slight male bias. Education levels average around six years, though some unusual negative values suggest a need for data cleaning. About 65% of the individuals are literate, and the average household size is approximately 4.5 members.
+
+Economically, there's a broad spectrum of income sources. The average household income is about 4.24 million Ugx, but there's significant variability, with some households earning extremely high incomes, especially from perennial crops. This points to considerable economic disparity.
+
+A significant portion of the data is missing, with around 1263 missing values in many columns, roughly half the dataset. This will require addressing, either through imputation or by excluding incomplete records, for accurate analysis.
+
+Income sources like formal employment, personal business, and casual labor vary widely, with many households reporting zero income from these sources, indicating reliance on other streams.
+
+# QUESTION 2: ASSIGNMENT 2
+
+```{r}
+# Calculate the 1st and 94th percentiles for HH Income
+lower_bound <- quantile(combined_data$`HH Income`, 0.01, na.rm = TRUE)
+upper_bound <- quantile(combined_data$`HH Income`, 0.94, na.rm = TRUE)
+
+# Remove outliers
+cleaned_data <- combined_data %>%
+  filter(`HH Income` >= lower_bound & `HH Income` <= upper_bound)
+
+# Display the first few rows of the cleaned data
+print(head(cleaned_data))
+
+```
+
+QUESTION 3: ADJUSTING FOR INFLATION
+
+Adjusting for local inflation is essential to ensure that the values of economic variables reflect their true purchasing power over time. Inflation erodes the value of money, meaning that the same amount of currency can buy fewer goods and services in the future compared to today. 
+By adjusting for inflation, we can compare values from different years on a like-for-like basis, maintaining the real value of money.
+
+DEFINING THE INFLATION RATES
+
+```{r}
+# Define the inflation rates for each year relative to 2017
+inflation_rates <- c(
+  "2017" = 1,
+  "2018" = 1.03,
+  "2019" = 1.04,
+  "2020" = 1.05,
+  "2021" = 1.06
+)
+
+```
+
+
+VARIABLES
+
+```{r}
+# Variables to adjust for inflation
+vars_to_adjust <- c(
+  "Formal Employment (Ugx)", "Personal Business & Self Employment (Ugx)", 
+  "Casual Labour (Ugx)", "Season 1 Agriculture Value (Ugx)", 
+  "Season 2 Agriculture Value (Ugx)", "Perennial Agriculture Value (Ugx)",
+  "Livestock Income / Consumed (Ugx)", "HH Income", 
+  "HH Income + Consumption + Residues", "HH Income + Consumption+ Assets + Residues"
+)
+```
+
