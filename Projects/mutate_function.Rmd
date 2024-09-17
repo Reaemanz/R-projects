@@ -1,0 +1,42 @@
+---
+title: "Mutate_function_"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# MUTATE FUNCTION
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+```
+
+
+```{r}
+flights_sml <- select(flights,
+                       year:day,
+                       ends_with("delay"),
+                       distance,
+                       air_time
+                      )
+
+mutate(flights_sml,
+ gain = arr_delay - dep_delay,
+ speed = distance / air_time * 60)
+```
+
+REFERRING TO MUTATED VARIABLES
+
+```{r}
+ mutate(flights_sml,
+ gain = arr_delay - dep_delay,
+ hours = air_time / 60,
+ gain_per_hour = gain / hours
+ )
+```
+
