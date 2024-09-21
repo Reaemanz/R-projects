@@ -1,0 +1,52 @@
+---
+title: "Summarise_function"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summarise function
+
+```{r}
+library(nycflights13)
+library(tidyverse)
+```
+
+
+```{r}
+summarise(flights, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+## GROUP BY
+
+```{r}
+by_day = group_by(flights, year, month)
+summarise(by_day, delay = mean(dep_delay, na.rm = TRUE))
+```
+
+
+## using the pipe
+
+Exploring the relationship between the dis
+tance and average delay for each location.
+
+```{r}
+delays <- flights %>%
+  group_by(dest) %>% 
+  summarise(count = n(),
+            dist = mean(distance, na.rm = TRUE),
+            delay = mean(arr_delay, na.rm = TRUE)) %>%         
+  filter(count > 20, dest != 'HNL')
+```
+
+
+```{r}
+ggplot(data = delays, mapping = aes(x = dist, y = delay)) +    
+  geom_point(aes(size = count), alpha = 1/3) +
+  geom_smooth(se = FALSE)
+```
+
