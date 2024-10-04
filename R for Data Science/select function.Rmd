@@ -1,0 +1,49 @@
+---
+title: "Tidyverse Project"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+```
+
+
+```{r}
+flights
+```
+
+```{r}
+select(flights, month, year)
+```
+
+```{r}
+select(flights, time_hour, air_time, everything())
+```
+
+#one_of()
+
+```{r}
+# Sample data frame
+df <- data.frame(a = 1:5, b = 6:10, c = 11:15)
+
+# Vector of column names to select
+columns_to_select <- c("a", "c")
+
+# Use one_of() to select these columns
+df_selected <- df %>%
+  select(one_of(columns_to_select))
+
+print(df_selected)
+```
+```{r}
+select(flights, contains("TIME"))
+```
+

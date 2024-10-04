@@ -1,0 +1,77 @@
+---
+title: "Useful Creation functions"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# USEFUL CREATION FUNCTIONS
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+
+```
+
+```{r}
+transmute(flights,
+ dep_time,
+ hour = dep_time %/% 100,
+ minute = dep_time %% 100)
+```
+
+
+```{r}
+(x <- 1:10)
+```
+
+```{r}
+lag(x)
+```
+
+```{r}
+lead(x)
+```
+
+```{r}
+cumsum(x)
+```
+
+```{r}
+cummean(x)
+```
+
+```{r}
+min_rank(x)
+```
+
+```{r}
+y <- c(10, 20, 20, 30)
+min_rank(y)
+
+
+```
+
+```{r}
+dense_rank(y)
+```
+
+```{r}
+percent_rank(y)
+```
+
+```{r}
+cume_dist(y)
+```
+```{r}
+flights
+
+```
+
+
+
+

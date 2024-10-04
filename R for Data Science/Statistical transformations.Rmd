@@ -1,0 +1,82 @@
+---
+title: "Statistical Transformations"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## STATISTICAL TRANSFORMATIONS
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+ggplot(data=diamonds) + geom_bar(mapping=aes(x=cut, color=cut))
+```
+```{r}
+ggplot(data=diamonds) + geom_bar(mapping=aes(x=cut, stat='identity'))
+```
+
+```{r}
+demo <- tribble(
+ ~a,      
+~b,
+ "bar_1", 20,
+ "bar_2", 30,
+ "bar_3", 40
+ )
+```
+
+
+```{r}
+ggplot(data = demo) +
+ geom_bar(
+ mapping = aes(x = a, y = b), stat = "identity"
+ )
+```
+
+```{r}
+ggplot(data = demo) + geom_bar(
+ mapping = aes(x = a) )
+```
+
+## DISPLAYING PROPORTIONS IN A BAR CHART.
+
+```{r}
+ggplot(data=diamonds) + geom_bar(mapping=aes(x=cut, y=..prop.., group=1))
+```
+
+
+```{r}
+ggplot(data=diamonds)+
+  stat_summary(
+  mapping=aes(x=cut,y=depth),
+  fun.ymin =min,
+  fun.ymax=max,
+  fun.y=median
+)
+```
+
+
+
+## Position adjustments
+
+```{r}
+ggplot(data=diamonds)+geom_bar(mapping=aes(x=cut,color=cut))
+
+```
+
+
+```{r}
+ggplot(data=diamonds)+geom_bar(mapping=aes(x=cut,fill=cut))
+```
+
+```{r}
+ggplot(data=diamonds)+geom_bar(mapping=aes(x=cut,fill=clarity))
+```
+
