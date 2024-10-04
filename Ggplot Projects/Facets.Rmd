@@ -1,0 +1,146 @@
+---
+title: "Facets"
+author: "Nsubuga Emmnauel Reagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Facets
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+ggplot(data=mpg) + geom_point(mapping=aes(x=displ, y=hwy)) +
+  facet_wrap(~class,nrow=2)
+```
+
+```{r}
+ggplot(data=mpg)+geom_point(mapping = aes(x=displ, y=hwy))+facet_grid(drv~cyl)
+```
+
+```{r}
+ ggplot(data = mpg) +
+ geom_point(mapping = aes(x = drv, y = cyl))
+```
+
+```{r}
+ggplot(data = mpg) +
+ geom_point(mapping = aes(x = displ, y = hwy)) +
+ facet_grid(drv ~ .)
+```
+
+
+```{r}
+ ggplot(data = mpg) +
+ geom_point(mapping = aes(x = displ, y = hwy)) +
+ facet_grid(. ~ cyl)
+```
+
+```{r}
+ ggplot(data = mpg) +
+ geom_point(mapping = aes(x = displ, y = hwy)) +
+ facet_wrap(~ class, nrow = 2)
+```
+
+
+```{r}
+ ggplot(data = mpg) +
+ geom_point(mapping = aes(x = displ, y = hwy), colour='blue') +
+ facet_wrap(~ class, nrow = 2)
+```
+
+```{r}
+?facet_wrap
+```
+
+
+```{r}
+p <- ggplot(mpg, aes(displ, hwy)) + geom_point()
+```
+
+```{r}
+# Use vars() to supply faceting variables:
+p + facet_wrap(vars(class))
+```
+
+
+```{r}
+# Control the number of rows and columns with nrow and ncol
+p + facet_wrap(vars(class), nrow = 4)
+```
+
+```{r}
+# You can facet by multiple variables
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(vars(cyl, drv))
+```
+
+```{r}
+# Use the `labeller` option to control how labels are printed:
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(vars(cyl, drv), labeller = "label_both")
+```
+
+```{r}
+# To change the order in which the panels appear, change the levels
+# of the underlying factor.
+mpg$class2 <- reorder(mpg$class, mpg$displ)
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(vars(class2))
+```
+
+```{r}
+# By default, the same scales are used for all panels. You can allow
+# scales to vary across the panels with the `scales` argument.
+# Free scales make it easier to see patterns within each panel, but
+# harder to compare across panels.
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(vars(class), scales = "free")
+```
+
+
+```{r}
+# When scales are constant, duplicated axes can be shown with
+# or without labels
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(vars(class), axes = "all", axis.labels = "all_y")
+```
+
+```{r}
+# Use `strip.position` to display the facet labels at the side of your
+# choice. Setting it to `bottom` makes it act as a subtitle for the axis.
+# This is typically used with free scales and a theme without boxes around
+# strip labels.
+ggplot(economics_long, aes(date, value)) +
+  geom_line() +
+  facet_wrap(vars(variable), scales = "free_y", nrow = 2, strip.position = "top") +
+  theme(strip.background = element_blank(), strip.placement = "outside")
+
+```
+
+
+```{r}
+ggplot(data=mpg, mapping=aes(x=displ, y=hwy)) + geom_point() + geom_smooth()
+```
+
+```{r}
+ggplot(data=mpg) + geom_point(mapping=aes(x=displ, y=hwy)) + geom_smooth(mapping=aes(x=displ, y=hwy))
+```
+
+
+```{r}
+
+```
+
