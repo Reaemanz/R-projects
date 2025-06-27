@@ -1,0 +1,58 @@
+---
+title: "Pivot Longer Project"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## SES
+
+```{r}
+library(readxl)
+library(tidyverse)
+
+
+#Read the Excel file (assuming the data is in the first sheet)
+
+file_path_ses <- "C:\\Users\\LPT\\Downloads\\ses trend charts.xlsx"
+raw_data <- read_excel(file_path_ses)
+
+# coerce all relevant columns to character (or numeric if you prefer)
+
+raw_data <- raw_data %>%
+  mutate(across(
+    c(
+      starts_with("Overall"),
+      starts_with("Agric"),
+      starts_with("WASH"),
+      starts_with("Livestock"),
+      starts_with("VSLA")
+    ),
+    as.character
+  ))
+
+# Pivot the data longer and select relevant columns
+
+clean_data <- raw_data %>%
+  pivot_longer(
+    cols = c(starts_with("Overall") | starts_with("Agric") | starts_with("WASH") | starts_with("Livestock") | starts_with("VSLA")),  # Adjust if column names are different
+    names_to = "Period",
+    values_to = "Values"
+  )  %>%
+  # Extract time point
+  mutate(
+    TimePoint = str_extract(Period, "(?i)month[0-9]+|base|endline"),  # (?i) makes it case-insensitive
+    Variable = str_remove(Period, "\\s*(?i)month[0-9]+|\\s*base|\\s*endline") %>% str_trim()
+  ) %>%
+  select(District, Cluster, Cohort, Cycle, Variable, TimePoint, Values)
+
+# View or write to Excel
+
+# write_xlsx(clean_data, "ses_data.xlsx")
+
+```
+
