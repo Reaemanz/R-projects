@@ -39,7 +39,7 @@ raw_data <- raw_data %>%
 
 clean_data <- raw_data %>%
   pivot_longer(
-    cols = c(starts_with("Overall") | starts_with("Agric") | starts_with("WASH") | starts_with("Livestock") | starts_with("VSLA")),  # Adjust if column names are different
+    cols = c(starts_with("Overall") | starts_with("Agric") | starts_with("WASH") | starts_with("Livestock") | starts_with("VSLA")), 
     names_to = "Period",
     values_to = "Values"
   )  %>%
