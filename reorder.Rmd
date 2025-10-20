@@ -1,0 +1,24 @@
+---
+title: "re-order"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## reorder
+
+```{r}
+library(tidyverse)
+
+ggplot(data = mpg) +
+   geom_boxplot(
+   mapping = aes(
+   x = reorder(class, hwy, FUN = median),
+   y = hwy)
+ )
+```
+
