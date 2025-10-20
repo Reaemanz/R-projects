@@ -1,0 +1,31 @@
+---
+title: "Nulls"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## NULL
+
+```{r}
+library(tidyverse)
+
+nycflights13::flights %>%
+ mutate(
+ cancelled = is.na(dep_time),
+ sched_hour = sched_dep_time %/% 100,
+ sched_min = sched_dep_time %% 100,
+ sched_dep_time = sched_hour + sched_min / 60
+ ) %>%
+ ggplot(mapping = aes(sched_dep_time)) +
+ geom_freqpoly(
+ mapping = aes(color = cancelled),
+ binwidth = 1/4
+ )
+
+```
+

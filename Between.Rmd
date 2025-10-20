@@ -1,0 +1,24 @@
+---
+title: "Between()"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Between
+
+```{r}
+between(1:12, 7, 9)
+
+x <- rnorm(1e2)
+x[between(x, -1, 1)]
+
+# On a tibble using `filter()`
+filter(starwars, between(height, 100, 150))
+
+```
+
