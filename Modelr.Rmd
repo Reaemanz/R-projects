@@ -1,0 +1,44 @@
+---
+title: "geom_tile"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R geom_tile
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+
+library(modelr)
+
+mod <- lm(log(price) ~ log(carat), data = diamonds)
+diamonds2 <- diamonds %>%
+add_residuals(mod) %>%
+mutate(resid = exp(resid))
+   
+```
+
+
+
+```{r}
+
+ggplot(data = diamonds2) +
+ geom_point(mapping = aes(x = carat, y = resid))
+```
+
+
+```{r}
+
+ggplot(data = diamonds2) +
+ geom_boxplot(mapping = aes(x = cut, y = resid))
+```
+
+
+
+
+
