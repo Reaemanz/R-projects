@@ -1,0 +1,55 @@
+---
+title: "Hakim"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Hakim
+
+```{r}
+library(readxl)
+#library(farmr)
+library(tidyverse)
+library(dbplyr)
+
+read_excel("G:/Shared drives/PEAL Master/02. PEAL Coordination Folder/Raw Data Sets/DRC Baselines/DRC Aru Mapping Dataset.xlsx")->drc
+
+
+drc_with_status <- drc %>%
+  group_by(district, cluster, village, headship) %>%
+  mutate(
+    n_total = n(),
+    n_target = ceiling(n_total * 0.7),  # 70% rounded up
+    random_order = sample(1:n(), n(), replace = FALSE),
+    status = if_else(random_order <= n_target, "Target", "Reserve")
+  ) %>%
+  ungroup() %>%
+  select(-n_total, -n_target, -random_order) 
+
+verification <- drc_with_status %>%
+  group_by(district, cluster, village, headship, status, hhh_full_name, Household_Head_Age, Household_Head_Gender, hhid, lat_x, long_y
+) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = status, values_from = count, values_fill = 0)
+
+summary <- drc_with_status %>%
+  group_by(district, cluster, village, headship, hhh_full_name, Household_Head_Age, Household_Head_Gender, hhid, lat_x, long_y ) %>%
+  summarise(
+    Total = n(),
+    Target = sum(status == "Target"),
+    Reserve = sum(status == "Reserve"),
+    Target_pct = (sum(status == "Target") / n()) * 100,
+    .groups = "drop")
+    
+    print(summary)
+    
+    output_file_path <- file.path(output_folder,"G:/Shared drives/PEAL Master/02. PEAL Coordination Folder/Raw Data Sets/DRC Baselines")
+    
+    write.csv(., file = "G:/Shared drives/PEAL Master/02. PEAL Coordination Folder/Raw Data Sets/DRC Baselines/Drc_bhs/tracksheets.csv", row.names = FALSE)
+```
+

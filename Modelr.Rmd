@@ -39,6 +39,9 @@ ggplot(data = diamonds2) +
 ```
 
 
+```{r}
+vignette('tibble')
+```
 
 
 
