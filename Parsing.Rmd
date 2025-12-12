@@ -1,0 +1,25 @@
+---
+title: "Parsing"
+author: "EmmaReagan"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Parsing
+
+```{r}
+x1 <- "El Ni\xf1o was particularly bad this year"
+x2 <- "\x82\xb1\x82\xf1\x82\xc9\x82\xbf\x82\xcd"
+```
+
+
+```{r}
+
+library(readr)
+guess_encoding(charToRaw(x1))
+```
+
