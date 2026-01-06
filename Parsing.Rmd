@@ -23,3 +23,7 @@ library(readr)
 guess_encoding(charToRaw(x1))
 ```
 
+```{r}
+guess_encoding(charToRaw(x2))
+```
+
